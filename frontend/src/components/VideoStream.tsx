@@ -271,6 +271,16 @@ export const VideoStream: React.FC<VideoStreamProps> = ({
     setIsRecording(false);
   };
 
+  const handleTakePhoto = () => {
+    if (!canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const image = canvas.toDataURL('image/jpeg', 0.95);
+    const link = document.createElement('a');
+    link.href = image;
+    link.download = 'photo.jpg';
+    link.click();
+  };
+
   return (
     <div className="bg-gray-800 rounded-xl overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b border-gray-700">
@@ -311,6 +321,13 @@ export const VideoStream: React.FC<VideoStreamProps> = ({
               Download Recording
             </a>
           )}
+          <button
+            onClick={handleTakePhoto}
+            disabled={!isPlaying}
+            className="flex items-center space-x-2 bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg transition-colors ml-2"
+          >
+            Take Photo
+          </button>
         </div>
       </div>
 

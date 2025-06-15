@@ -15,7 +15,7 @@ function App() {
   const [faceDatabase, setFaceDatabase] = useState<Array<{id: string, name: string, descriptor: Float32Array, image: string}>>([]);
 
   const tabs = [
-    { id: 'stream', label: 'Live Stream', icon: Monitor },
+    { id: 'stream', label: 'Live', icon: Monitor },
     { id: 'faces', label: 'Face Database', icon: Users },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
