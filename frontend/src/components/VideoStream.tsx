@@ -35,6 +35,7 @@ export const VideoStream: React.FC<VideoStreamProps> = ({
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
+  const [isMjpeg, setIsMjpeg] = useState(false);
 
   // Load face-api models
   useEffect(() => {
@@ -172,7 +173,7 @@ export const VideoStream: React.FC<VideoStreamProps> = ({
   useEffect(() => {
     if (isPlaying && modelsLoaded) {
       let lastProcessed = 0;
-      const interval = 1000; // ms between each processFrame
+      const interval = 0; // ms between each processFrame
   
       const animate = () => {
         const now = Date.now();
@@ -201,13 +202,23 @@ export const VideoStream: React.FC<VideoStreamProps> = ({
     try {
       setError('');
       if (streamUrl.startsWith('http')) {
-        if (videoRef.current) {
-          videoRef.current.src = streamUrl;
-          videoRef.current.crossOrigin = 'anonymous';
-          await videoRef.current.play();
+        // Special handling for /video_feed (MJPEG)
+        if (streamUrl.includes('/video_feed')) {
+          setIsMjpeg(true);
           setIsPlaying(true);
+        } else {
+          setIsMjpeg(false);
+          // For other HTTP/HTTPS streams (HLS, MP4, etc.)
+          if (videoRef.current) {
+            videoRef.current.src = streamUrl;
+            videoRef.current.crossOrigin = 'anonymous';
+            await videoRef.current.play();
+            setIsPlaying(true);
+          }
         }
       } else {
+        setIsMjpeg(false);
+        // For webcam or other MediaStream sources
         const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1920, height: 1080 } });
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -281,6 +292,29 @@ export const VideoStream: React.FC<VideoStreamProps> = ({
     link.click();
   };
 
+  const handleSubmitStreamUrl = async () => {
+    if (!streamUrl) {
+      setError('Please enter a stream URL');
+      return;
+    }
+    try {
+      setError('');
+      await fetch('http://localhost:5001/set_stream_url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: streamUrl }),
+      });
+      if (videoRef.current) {
+        videoRef.current.src = 'http://localhost:5001/video_feed';
+        videoRef.current.crossOrigin = 'anonymous';
+        await videoRef.current.play();
+        setIsPlaying(true);
+      }
+    } catch (err) {
+      setError('Failed to submit stream URL: ' + (err as Error).message);
+    }
+  };
+
   return (
     <div className="bg-gray-800 rounded-xl overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b border-gray-700">
@@ -332,14 +366,23 @@ export const VideoStream: React.FC<VideoStreamProps> = ({
       </div>
 
       <div className="relative aspect-video bg-black">
-        <video
-          ref={videoRef}
-          className="absolute inset-0 w-full h-full object-contain"
-          style={{ opacity: 0 }}
-          onLoadedMetadata={handleVideoLoadedMetadata}
-          muted
-          playsInline
-        />
+        {isMjpeg ? (
+          <img
+            src={streamUrl}
+            alt="Live MJPEG Stream"
+            className="absolute inset-0 w-full h-full object-contain"
+            style={{ zIndex: 1 }}
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            className="absolute inset-0 w-full h-full object-contain"
+            style={{ opacity: 0 }}
+            onLoadedMetadata={handleVideoLoadedMetadata}
+            muted
+            playsInline
+          />
+        )}
         <canvas
           ref={canvasRef}
           className="absolute inset-0 w-full h-full object-contain"
